@@ -1,141 +1,260 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useParams } from 'next/navigation'
-
-interface Todo {
-  id: string
-  title: string
-  description?: string
-  completed: boolean
-}
+import { getDateRange, formatDateForDB } from '@/lib/dateUtils'
+import { Todo, Profile } from '@/types'
+import DayView from '@/components/DayView'
+import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
 
 export default function StudentTodoPage() {
   const params = useParams()
   const studentId = params.studentId as string
-  const [todos, setTodos] = useState<Todo[]>([])
+  const [student, setStudent] = useState<Profile | null>(null)
+  const [todosByDate, setTodosByDate] = useState<Record<string, Todo[]>>({})
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [loading, setLoading] = useState(true)
-  const [newTask, setNewTask] = useState({ title: '', description: '' })
-  const [editingTask, setEditingTask] = useState<Todo | null>(null)
   const [error, setError] = useState('')
+
+  const dateRange = useMemo(() => getDateRange(), [])
+
+  useEffect(() => {
+    async function fetchStudent() {
+      setLoading(true)
+      const supabase = createClient()
+      
+      // Fetch student details
+      const { data: studentData } = await supabase
+        .from('profiles')
+        .select('id, name, role')
+        .eq('id', studentId)
+        .single()
+      
+      setStudent(studentData)
+      setLoading(false)
+    }
+    fetchStudent()
+  }, [studentId])
 
   useEffect(() => {
     async function fetchTodos() {
-      setLoading(true)
-      const supabase = createClient()
       if (!studentId) return
-      const { data: todosData } = await supabase
+      
+      const supabase = createClient()
+
+      // Fetch todos for all 7 days
+      const dateStrings = dateRange.map(date => formatDateForDB(date))
+      const { data: todosData, error } = await supabase
         .from('todos')
-        .select('id, title, description, completed')
+        .select('id, student_id, title, description, completed, due_date, created_at, updated_at')
         .eq('student_id', studentId)
+        .in('due_date', dateStrings)
+        .order('due_date', { ascending: true })
         .order('created_at', { ascending: false })
-      setTodos(todosData || [])
-      setLoading(false)
+
+      if (error) {
+        setError(error.message)
+        return
+      }
+
+      // Group todos by date
+      const groupedTodos: Record<string, Todo[]> = {}
+      dateStrings.forEach(dateStr => {
+        groupedTodos[dateStr] = []
+      })
+
+      todosData?.forEach(todo => {
+        const dateStr = todo.due_date
+        if (!groupedTodos[dateStr]) {
+          groupedTodos[dateStr] = []
+        }
+        groupedTodos[dateStr].push(todo)
+      })
+
+      setTodosByDate(groupedTodos)
     }
+
     fetchTodos()
+  }, [studentId, dateRange])
+
+  // Coach: toggle complete
+  const toggleTodo = useCallback(async (todoId: string, completed: boolean) => {
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('todos')
+      .update({ completed: !completed })
+      .eq('id', todoId)
+    
+    if (error) {
+      setError(error.message)
+      return
+    }
+
+    // Update local state
+    setTodosByDate(prev => {
+      const newState = { ...prev }
+      Object.keys(newState).forEach(dateStr => {
+        newState[dateStr] = newState[dateStr].map(todo => 
+          todo.id === todoId ? { ...todo, completed: !completed } : todo
+        )
+      })
+      return newState
+    })
+  }, [])
+
+  // Coach: add todo
+  const addTodo = useCallback(async (title: string, description: string, dueDate: Date) => {
+    if (!studentId) return
+    
+    console.log('Adding todo for student:', studentId)
+    console.log('Due date:', dueDate)
+    
+    const supabase = createClient()
+    const dueDateStr = formatDateForDB(dueDate)
+    
+    const { data, error } = await supabase
+      .from('todos')
+      .insert({
+        student_id: studentId,
+        title,
+        description,
+        due_date: dueDateStr,
+      })
+      .select('id, student_id, title, description, completed, due_date, created_at, updated_at')
+      .single()
+
+    if (error) {
+      console.error('Error adding todo:', error)
+      setError(error.message)
+      return
+    }
+
+    console.log('Successfully added todo:', data)
+
+    // Update local state
+    setTodosByDate(prev => ({
+      ...prev,
+      [dueDateStr]: [data, ...(prev[dueDateStr] || [])]
+    }))
   }, [studentId])
 
-  async function toggleTodo(id: string, completed: boolean) {
+  // Coach: edit todo
+  const editTodo = useCallback(async (updatedTodo: Todo) => {
+    console.log('Editing todo:', updatedTodo.id)
+    
     const supabase = createClient()
-    await supabase.from('todos').update({ completed: !completed }).eq('id', id)
-    setTodos(todos => todos.map(t => t.id === id ? { ...t, completed: !completed } : t))
-  }
-  async function addTodo() {
-    if (!studentId || !newTask.title) return
+    const { error } = await supabase
+      .from('todos')
+      .update({
+        title: updatedTodo.title,
+        description: updatedTodo.description,
+      })
+      .eq('id', updatedTodo.id)
+
+    if (error) {
+      console.error('Error editing todo:', error)
+      setError(error.message)
+      return
+    }
+
+    console.log('Successfully edited todo')
+
+    // Update local state
+    setTodosByDate(prev => {
+      const newState = { ...prev }
+      Object.keys(newState).forEach(dateStr => {
+        newState[dateStr] = newState[dateStr].map(todo => 
+          todo.id === updatedTodo.id ? { ...todo, ...updatedTodo } : todo
+        )
+      })
+      return newState
+    })
+  }, [])
+
+  // Coach: delete todo
+  const deleteTodo = useCallback(async (todoId: string) => {
+    if (!window.confirm('Bu görevi silmek istediğinize emin misiniz?')) return
+    
+    console.log('Deleting todo:', todoId)
+    
     const supabase = createClient()
-    const { data, error } = await supabase.from('todos').insert({
-      student_id: studentId,
-      title: newTask.title,
-      description: newTask.description,
-    }).select('id, title, description, completed').single()
-    if (error) setError(error.message)
-    else setTodos(todos => [data, ...todos])
-    setNewTask({ title: '', description: '' })
-  }
-  async function startEdit(todo: Todo) {
-    setEditingTask(todo)
-  }
-  async function saveEdit() {
-    if (!editingTask) return
-    const supabase = createClient()
-    const { data, error } = await supabase.from('todos').update({
-      title: editingTask.title,
-      description: editingTask.description,
-    }).eq('id', editingTask.id).select('id, title, description, completed').single()
-    if (error) setError(error.message)
-    else setTodos(todos => todos.map(t => t.id === editingTask.id ? data : t))
-    setEditingTask(null)
-  }
-  async function deleteTodo(id: string) {
-    const supabase = createClient()
-    await supabase.from('todos').delete().eq('id', id)
-    setTodos(todos => todos.filter(t => t.id !== id))
+    const { error } = await supabase
+      .from('todos')
+      .delete()
+      .eq('id', todoId)
+
+    if (error) {
+      console.error('Error deleting todo:', error)
+      setError(error.message)
+      return
+    }
+
+    console.log('Successfully deleted todo')
+
+    // Update local state
+    setTodosByDate(prev => {
+      const newState = { ...prev }
+      Object.keys(newState).forEach(dateStr => {
+        newState[dateStr] = newState[dateStr].filter(todo => todo.id !== todoId)
+      })
+      return newState
+    })
+  }, [])
+
+  const getTodosForDate = useCallback((date: Date): Todo[] => {
+    const dateStr = formatDateForDB(date)
+    return todosByDate[dateStr] || []
+  }, [todosByDate])
+
+  if (loading && !student) {
+    return <div className="min-h-screen flex items-center justify-center bg-black text-blue-400 text-2xl">Yükleniyor...</div>
   }
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-black text-blue-400 text-2xl">Yükleniyor...</div>
+  if (!student) {
+    return <div className="min-h-screen flex items-center justify-center bg-black text-red-400 text-xl">Öğrenci bulunamadı.</div>
   }
 
   return (
     <div className="min-h-screen bg-black flex flex-col items-center py-10">
-      <h1 className="text-3xl font-bold text-blue-400 mb-6">Öğrenci Görevleri</h1>
-      <div className="w-full max-w-3xl bg-gray-900 rounded-xl p-6 border border-blue-900">
-        <div className="mb-4 flex gap-2">
-          <input
-            className="flex-1 px-4 py-2 rounded-lg bg-black border border-blue-800 text-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            placeholder="Görev başlığı"
-            value={newTask.title}
-            onChange={e => setNewTask(t => ({ ...t, title: e.target.value }))}
-          />
-          <input
-            className="flex-1 px-4 py-2 rounded-lg bg-black border border-blue-800 text-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            placeholder="Açıklama (isteğe bağlı)"
-            value={newTask.description}
-            onChange={e => setNewTask(t => ({ ...t, description: e.target.value }))}
-          />
-          <button
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg font-bold hover:bg-blue-600"
-            onClick={addTodo}
-            type="button"
-          >Ekle</button>
+      <div className="w-full max-w-7xl px-4">
+        <div className="mb-6">
+          <Link 
+            href={`/students/${studentId}`}
+            className="inline-flex items-center text-blue-400 hover:text-blue-300 mb-4"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Geri Dön
+          </Link>
+          <h1 className="text-3xl font-bold text-blue-400 mb-2">{student.name}</h1>
+          <h2 className="text-xl text-blue-300">Görevleri</h2>
         </div>
-        {error && <div className="text-red-400 mb-2">{error}</div>}
-        <ul className="space-y-2">
-          {todos.map(todo => (
-            <li key={todo.id} className="flex items-center gap-x-4 bg-gray-800 p-3 rounded-lg border border-blue-900">
-              <input
-                type="checkbox"
-                className="h-5 w-5 accent-blue-500"
-                checked={todo.completed}
-                onChange={() => toggleTodo(todo.id, todo.completed)}
-              />
-              {editingTask && editingTask.id === todo.id ? (
-                <>
-                  <input
-                    className="flex-1 px-2 py-1 rounded bg-black border border-blue-800 text-blue-200"
-                    value={editingTask.title}
-                    onChange={e => setEditingTask(t => t ? { ...t, title: e.target.value } : t)}
-                  />
-                  <input
-                    className="flex-1 px-2 py-1 rounded bg-black border border-blue-800 text-blue-200"
-                    value={editingTask.description || ''}
-                    onChange={e => setEditingTask(t => t ? { ...t, description: e.target.value } : t)}
-                  />
-                  <button className="px-2 py-1 bg-blue-500 text-white rounded-lg" onClick={saveEdit} type="button">Kaydet</button>
-                  <button className="px-2 py-1 bg-gray-700 text-white rounded-lg" onClick={() => setEditingTask(null)} type="button">İptal</button>
-                </>
-              ) : (
-                <>
-                  <span className={`flex-1 ${todo.completed ? 'line-through text-blue-700' : 'text-blue-200'}`}>{todo.title}</span>
-                  <span className="flex-1 text-blue-300">{todo.description}</span>
-                  <button className="px-2 py-1 bg-blue-700 text-white rounded-lg" onClick={() => startEdit(todo)} type="button">Düzenle</button>
-                  <button className="px-2 py-1 bg-red-600 text-white rounded-lg" onClick={() => deleteTodo(todo.id)} type="button">Sil</button>
-                </>
-              )}
-            </li>
+        
+        {/* Days Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+          {dateRange.map(date => (
+            <DayView
+              key={`${date.toISOString()}-${studentId}`}
+              date={date}
+              todos={getTodosForDate(date)}
+              isActive={selectedDate.toDateString() === date.toDateString()}
+              onDateSelect={setSelectedDate}
+              onToggleTodo={toggleTodo}
+              onAddTodo={addTodo}
+              onEditTodo={editTodo}
+              onDeleteTodo={deleteTodo}
+              isCoach={true}
+              loading={loading}
+            />
           ))}
-        </ul>
+        </div>
+
+        {error && (
+          <div className="mt-4 text-red-400 text-center">
+            Hata: {error}
+          </div>
+        )}
       </div>
     </div>
   )

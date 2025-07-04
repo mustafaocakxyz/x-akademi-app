@@ -41,14 +41,35 @@ export interface NetScore {
   created_at: string
 }
 
-export interface TodoItem {
+export interface Todo {
   id: string
-  user_id: string
+  student_id: string
   title: string
   description?: string
   completed: boolean
-  priority: 'low' | 'medium' | 'high'
-  due_date?: string
+  due_date: string // YYYY-MM-DD format
   created_at: string
   updated_at: string
+}
+
+export interface Profile {
+  id: string
+  name: string
+  role: string
+  email?: string
+  student_type?: string
+  coach_id?: string
+}
+
+export interface DayViewProps {
+  date: Date
+  todos: Todo[]
+  isActive: boolean
+  onDateSelect: (date: Date) => void
+  onToggleTodo: (todoId: string, completed: boolean) => void
+  onAddTodo: (title: string, description: string) => void
+  onEditTodo: (todo: Todo) => void
+  onDeleteTodo: (todoId: string) => void
+  isCoach: boolean
+  loading: boolean
 } 
