@@ -10,7 +10,7 @@ export default function TestConnectionPage() {
     async function testConnection() {
       try {
         const supabase = createClient()
-        const { data, error } = await supabase.from('profiles').select('*').limit(1)
+        const { error } = await supabase.from('profiles').select('*').limit(1)
         
         if (error) {
           setStatus(`Error: ${error.message}`)
