@@ -295,9 +295,9 @@ export default function TodoPage() {
               isActive={selectedDate.toDateString() === date.toDateString()}
               onDateSelect={setSelectedDate}
               onToggleTodo={toggleTodo}
-              onAddTodo={(_title: string, _description: string, _dueDate: Date) => {}} // Students can't add
-              onEditTodo={(_todo: Todo) => {}} // Students can't edit
-              onDeleteTodo={(_todoId: string) => {}} // Students can't delete
+              onAddTodo={(_title: string, _description: string, _dueDate: Date) => {}} // eslint-disable-line @typescript-eslint/no-unused-vars
+              onEditTodo={(_todo: Todo) => {}} // eslint-disable-line @typescript-eslint/no-unused-vars
+              onDeleteTodo={(_todoId: string) => {}} // eslint-disable-line @typescript-eslint/no-unused-vars
               isCoach={false}
               loading={loading}
             />
