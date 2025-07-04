@@ -1,16 +1,28 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import LayoutWithNav from "@/components/layout/LayoutWithNav";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const gontserrat = localFont({
+  src: [
+    {
+      path: '../fonts/gontserrat/Gontserrat-Regular.ttf',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: '../fonts/gontserrat/Gontserrat-Medium.ttf',
+      weight: '500',
+      style: 'normal',
+    },
+    {
+      path: '../fonts/gontserrat/Gontserrat-Bold.ttf',
+      weight: '700',
+      style: 'normal',
+    },
+  ],
+  variable: "--font-gontserrat",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -26,7 +38,7 @@ export default function RootLayout({
   return (
     <html lang="tr">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-black`}
+        className={`${gontserrat.variable} antialiased bg-black`}
       >
         <LayoutWithNav>{children}</LayoutWithNav>
       </body>

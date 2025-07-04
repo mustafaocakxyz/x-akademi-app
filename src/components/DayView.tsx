@@ -71,7 +71,7 @@ export default function DayView({
   }, [date])
 
   const getDayClass = useMemo(() => {
-    let baseClass = 'flex-1 min-w-0 p-4 rounded-lg border transition-all cursor-pointer'
+    let baseClass = 'flex-1 p-4 rounded-lg border transition-all cursor-pointer'
     
     if (isActive) {
       baseClass += ' bg-blue-600 text-white border-blue-600'
