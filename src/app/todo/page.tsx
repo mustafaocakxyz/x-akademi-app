@@ -244,9 +244,9 @@ export default function TodoPage() {
         </div>
 
         {selectedStudent ? (
-          <div className="w-full max-w-7xl px-4">
+          <div className="w-full max-w-8xl px-4">
             {/* Days Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-6">
               {dateRange.map(date => (
                 <DayView
                   key={date.toISOString()}
@@ -284,9 +284,9 @@ export default function TodoPage() {
     <div className="min-h-screen bg-black flex flex-col items-center py-10">
       <h1 className="text-3xl font-bold text-blue-400 mb-6">Görevlerim</h1>
       
-      <div className="w-full max-w-7xl px-4">
+      <div className="w-full max-w-8xl px-4">
         {/* Days Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-6">
           {dateRange.map(date => (
             <DayView
               key={date.toISOString()}
