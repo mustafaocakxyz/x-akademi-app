@@ -295,9 +295,9 @@ export default function TodoPage() {
               isActive={selectedDate.toDateString() === date.toDateString()}
               onDateSelect={setSelectedDate}
               onToggleTodo={toggleTodo}
-              onAddTodo={(title: string, description: string, dueDate: Date) => {}} // Students can't add
-              onEditTodo={() => {}} // Students can't edit
-              onDeleteTodo={() => {}} // Students can't delete
+              onAddTodo={(_title: string, _description: string, _dueDate: Date) => {}} // Students can't add
+              onEditTodo={(_todo: Todo) => {}} // Students can't edit
+              onDeleteTodo={(_todoId: string) => {}} // Students can't delete
               isCoach={false}
               loading={loading}
             />
