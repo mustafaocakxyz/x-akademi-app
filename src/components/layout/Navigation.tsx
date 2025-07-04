@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Clock, Target, BarChart3, CheckSquare, Home, Menu, X } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 
 const navigation = [
@@ -14,16 +14,63 @@ const navigation = [
   { name: 'Yapılacaklar', href: '/todo', icon: CheckSquare },
 ]
 
+interface Profile {
+  id: string
+  name: string
+  role: string
+}
+
 export default function Navigation() {
   const pathname = usePathname()
   const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchProfile() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('id, name, role')
+        .eq('id', user.id)
+        .single()
+      
+      setProfile(profileData)
+      setLoading(false)
+    }
+    fetchProfile()
+  }, [])
 
   async function handleLogout() {
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push('/login')
   }
+
+  // If loading, show minimal navigation
+  if (loading) {
+    return (
+      <nav className="bg-white shadow-lg border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <h1 className="text-xl font-bold text-gray-900">X Akademi</h1>
+              </div>
+            </div>
+          </div>
+        </div>
+      </nav>
+    )
+  }
+
+  // For coaches, show only Ana Sayfa and logout
+  const isCoach = profile?.role === 'coach'
+  const coachNavigation = navigation.filter(item => item.name === 'Ana Sayfa')
 
   return (
     <nav className="bg-white shadow-lg border-b">
@@ -37,7 +84,7 @@ export default function Navigation() {
           
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            {navigation.map((item) => {
+            {(isCoach ? coachNavigation : navigation).map((item) => {
               const isActive = pathname === item.href
               return (
                 <Link
@@ -82,7 +129,7 @@ export default function Navigation() {
       {mobileMenuOpen && (
         <div className="md:hidden">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white border-t">
-            {navigation.map((item) => {
+            {(isCoach ? coachNavigation : navigation).map((item) => {
               const isActive = pathname === item.href
               return (
                 <Link
