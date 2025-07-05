@@ -45,6 +45,7 @@ export default function KazanimTakibiPageContent() {
         .from('subjects')
         .select('id, name')
         .order('name')
+      
       if (!subjectsData) {
         setSubjects([])
         setLoading(false)
@@ -58,6 +59,7 @@ export default function KazanimTakibiPageContent() {
             .from('learning_outcomes')
             .select('id')
             .eq('subject_id', subject.id)
+          
           const totalCount = outcomesData?.length || 0
           if (totalCount === 0) {
             return {
