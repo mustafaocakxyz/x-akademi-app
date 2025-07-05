@@ -71,8 +71,16 @@ export default function SubjectDetailPage() {
         .from('learning_outcomes')
         .select('id, title, order')
         .eq('subject_id', subjectId)
-        .order('order')
-      setOutcomes(outcomesData || [])
+        .order('order', { ascending: true })
+      
+      // Sort numerically to handle string vs number ordering
+      const sortedOutcomes = outcomesData ? outcomesData.sort((a, b) => {
+        const orderA = Number(a.order) || 0
+        const orderB = Number(b.order) || 0
+        return orderA - orderB
+      }) : []
+      
+      setOutcomes(sortedOutcomes)
 
       // Determine which student's outcomes to fetch
       let targetStudentId = user.id // Default to current user
@@ -251,10 +259,10 @@ export default function SubjectDetailPage() {
                   )}
                   <div className="flex-1">
                     <p className={`text-sm font-mono text-blue-400 mb-1`}>
-                      {outcome.title.split('.')[0]}.{outcome.title.split('.')[1]}.{outcome.title.split('.')[2]}
+                      Kazanım {outcome.order}
                     </p>
                     <p className={`text-blue-200 ${isCompleted ? 'line-through text-green-400' : ''}`}>
-                      {outcome.title.split('.- ')[1]}
+                      {outcome.title}
                     </p>
                   </div>
                 </div>
