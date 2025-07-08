@@ -29,7 +29,7 @@ export default function StudentDetailPage() {
       setStudent(data)
       
       if (data) {
-        const today = new Date().toISOString().split('T')[0]
+        const today = new Date().toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' })
         
         // Fetch today's sessions
         const { data: todaySessions } = await supabase
@@ -47,8 +47,8 @@ export default function StudentDetailPage() {
         if (todaySessions && allSessions) {
           const todaySeconds = todaySessions.reduce((sum, s) => sum + (s.duration_seconds || 0), 0)
           const totalSeconds = allSessions.reduce((sum, s) => sum + (s.duration_seconds || 0), 0)
-          const sessionCount = allSessions.length
-          const averageSessionLength = sessionCount > 0 ? Math.round(totalSeconds / sessionCount) : 0
+          const sessionCount = todaySessions.length
+          const averageSessionLength = sessionCount > 0 ? Math.round(todaySeconds / sessionCount) : 0
           
           setStudyStats({
             todaySeconds,
@@ -116,7 +116,7 @@ export default function StudentDetailPage() {
             
             {/* Session Count */}
             <div className="bg-gray-800 rounded-lg p-4 border border-blue-800">
-              <div className="text-blue-300 text-sm mb-1">Toplam Oturum</div>
+              <div className="text-blue-300 text-sm mb-1">Bugünkü Oturum</div>
               <div className="text-2xl font-bold text-purple-400">
                 {studyStats.sessionCount}
               </div>
@@ -133,26 +133,20 @@ export default function StudentDetailPage() {
         </div>
       )}
       
-      <div className="w-full max-w-md bg-gray-900 rounded-xl p-6 border border-blue-900">
+      <div className="w-full max-w-2xl bg-gray-900 rounded-xl p-6 border border-blue-900">
         <h2 className="text-xl font-bold text-blue-400 mb-4">Sayfalar</h2>
-        <ul className="space-y-2">
-          <li>
-            <Link href={`/students/${student.id}/todo`} className="block p-3 rounded-lg bg-gray-800 text-blue-200 border border-blue-900 hover:bg-blue-900 transition-colors">
-              To-Do List
-            </Link>
-          </li>
-          <li>
-            <Link href={`/kazanim-takibi?studentId=${student.id}`} className="block p-3 rounded-lg bg-gray-800 text-blue-200 border border-blue-900 hover:bg-blue-900 transition-colors">
-              Kazanıms
-            </Link>
-          </li>
-          <li>
-            <Link href={`/net-tracker?studentId=${student.id}`} className="block p-3 rounded-lg bg-gray-800 text-blue-200 border border-blue-900 hover:bg-blue-900 transition-colors">
-              Deneme Takibi
-            </Link>
-          </li>
+        <div className="grid grid-cols-3 gap-4">
+          <Link href={`/students/${student.id}/todo`} className="block p-3 rounded-lg bg-gray-800 text-blue-200 border border-blue-900 hover:bg-blue-900 transition-colors text-center">
+            Görevler
+          </Link>
+          <Link href={`/kazanim-takibi?studentId=${student.id}`} className="block p-3 rounded-lg bg-gray-800 text-blue-200 border border-blue-900 hover:bg-blue-900 transition-colors text-center">
+            Kazanımlar
+          </Link>
+          <Link href={`/net-tracker?studentId=${student.id}`} className="block p-3 rounded-lg bg-gray-800 text-blue-200 border border-blue-900 hover:bg-blue-900 transition-colors text-center">
+            Denemeler
+          </Link>
           {/* Add more student-related pages here as needed */}
-        </ul>
+        </div>
       </div>
     </div>
   )
