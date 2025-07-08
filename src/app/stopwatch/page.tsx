@@ -19,7 +19,7 @@ export default function StopwatchPage() {
 
   // Initialize date tracking
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0]
+    const today = new Date().toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' })
     setCurrentDate(today)
     setLastSavedDate(today)
     loadTodaySession()
@@ -31,7 +31,7 @@ export default function StopwatchPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const today = new Date().toISOString().split('T')[0]
+    const today = new Date().toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' })
     const { data: sessions } = await supabase
       .from('study_sessions')
       .select('duration_seconds')
@@ -47,7 +47,7 @@ export default function StopwatchPage() {
   // Date change detection
   useEffect(() => {
     const checkDateChange = () => {
-      const today = new Date().toISOString().split('T')[0]
+      const today = new Date().toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' })
       if (currentDate !== today) {
         autoSaveAndReset()
       }
@@ -65,8 +65,9 @@ export default function StopwatchPage() {
   useEffect(() => {
     const checkMidnightWarning = () => {
       const now = new Date()
-      const hoursUntilMidnight = 24 - now.getHours()
-      const minutesUntilMidnight = 60 - now.getMinutes()
+      const turkishTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Istanbul' }))
+      const hoursUntilMidnight = 24 - turkishTime.getHours()
+      const minutesUntilMidnight = 60 - turkishTime.getMinutes()
       
       // Show warning when less than 1 hour until midnight and stopwatch is running
       if (hoursUntilMidnight <= 1 && minutesUntilMidnight <= 30 && running) {
@@ -93,7 +94,7 @@ export default function StopwatchPage() {
       setPaused(false)
       
       // Update date tracking
-      const today = new Date().toISOString().split('T')[0]
+      const today = new Date().toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' })
       setCurrentDate(today)
       setLastSavedDate(today)
       
