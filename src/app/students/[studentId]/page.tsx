@@ -29,7 +29,7 @@ export default function StudentDetailPage() {
       setStudent(data)
       
       if (data) {
-        const today = new Date().toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' })
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' })
         
         // Fetch today's sessions
         const { data: todaySessions } = await supabase
