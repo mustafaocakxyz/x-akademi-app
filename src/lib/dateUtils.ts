@@ -1,6 +1,9 @@
 // Get date range (yesterday + today + next 5 days)
 export function getDateRange(): Date[] {
-  const today = new Date()
+  // Get current date in Turkish timezone
+  const now = new Date()
+  const turkishTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Istanbul' }))
+  const today = new Date(turkishTime.getFullYear(), turkishTime.getMonth(), turkishTime.getDate())
   const dates = []
   
   // Yesterday
@@ -32,18 +35,23 @@ export function formatDateTurkish(date: Date): string {
 
 // Format date to YYYY-MM-DD for database queries
 export function formatDateForDB(date: Date): string {
-  return date.toISOString().split('T')[0]
+  // Convert to Turkish timezone and format as YYYY-MM-DD
+  return date.toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' })
 }
 
 // Check if date is today
 export function isToday(date: Date): boolean {
-  const today = new Date()
+  const now = new Date()
+  const turkishTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Istanbul' }))
+  const today = new Date(turkishTime.getFullYear(), turkishTime.getMonth(), turkishTime.getDate())
   return date.toDateString() === today.toDateString()
 }
 
 // Check if date is yesterday
 export function isYesterday(date: Date): boolean {
-  const yesterday = new Date()
+  const now = new Date()
+  const turkishTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Istanbul' }))
+  const yesterday = new Date(turkishTime.getFullYear(), turkishTime.getMonth(), turkishTime.getDate())
   yesterday.setDate(yesterday.getDate() - 1)
   return date.toDateString() === yesterday.toDateString()
 }
