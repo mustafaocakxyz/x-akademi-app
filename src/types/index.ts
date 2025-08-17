@@ -61,6 +61,17 @@ export interface Profile {
   coach_id?: string
 }
 
+export interface ActiveSession {
+  id: string
+  student_id: string
+  start_time: string // ISO timestamp
+  is_paused: boolean
+  last_pause_time: string | null // ISO timestamp, null if running
+  total_paused_time: number // in milliseconds
+  created_at: string
+  updated_at: string
+}
+
 export interface DayViewProps {
   date: Date
   todos: Todo[]
