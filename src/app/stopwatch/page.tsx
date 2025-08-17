@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
+import { ActiveSession } from '@/types'
 
 export default function StopwatchPage() {
   const [running, setRunning] = useState(false)
@@ -11,19 +12,90 @@ export default function StopwatchPage() {
   const [lastSavedDate, setLastSavedDate] = useState('')
   const [todayTotal, setTodayTotal] = useState(0)
   const [showDateChangeWarning, setShowDateChangeWarning] = useState(false)
+  const [activeSession, setActiveSession] = useState<ActiveSession | null>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const dateCheckRef = useRef<NodeJS.Timeout | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  // Initialize date tracking
+  // Initialize date tracking and check for existing active session
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0]
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' })
     setCurrentDate(today)
     setLastSavedDate(today)
     loadTodaySession()
+    checkForActiveSession()
   }, [])
+
+  // Check if there's an existing active session
+  const checkForActiveSession = async () => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { data: session } = await supabase
+      .from('active_sessions')
+      .select('*')
+      .eq('student_id', user.id)
+      .single()
+
+    if (session) {
+      // Check if session is not too old (older than 24 hours)
+      const startTime = new Date(session.start_time)
+      const now = new Date()
+      const hoursDiff = (now.getTime() - startTime.getTime()) / (1000 * 60 * 60)
+      
+      if (hoursDiff > 24) {
+        // Session is too old, clean it up
+        await clearActiveSession()
+        return
+      }
+      
+      setActiveSession(session)
+      setRunning(true)
+      setPaused(session.is_paused)
+      
+      // Calculate elapsed time from start_time, excluding paused time
+      const elapsedSeconds = calculateElapsedTime(session)
+      setSeconds(elapsedSeconds)
+    }
+  }
+
+  // Calculate elapsed time excluding paused time
+  const calculateElapsedTime = (session: ActiveSession): number => {
+    const now = new Date().getTime()
+    const startTime = new Date(session.start_time).getTime()
+    
+    if (session.is_paused && session.last_pause_time) {
+      // Currently paused: use last_pause_time
+      const lastPauseTime = new Date(session.last_pause_time).getTime()
+      const elapsed = lastPauseTime - startTime - session.total_paused_time
+      return Math.max(0, Math.floor(elapsed / 1000)) // Ensure non-negative
+    } else {
+      // Currently running: use current time
+      const elapsed = now - startTime - session.total_paused_time
+      return Math.max(0, Math.floor(elapsed / 1000)) // Ensure non-negative
+    }
+  }
+
+  // Update active session in database
+  const updateActiveSession = async (updates: Partial<ActiveSession>) => {
+    if (!activeSession) return
+    
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('active_sessions')
+      .update(updates)
+      .eq('id', activeSession.id)
+    
+    if (error) {
+      throw new Error('Aktif oturum güncellenemedi: ' + error.message)
+    }
+    
+    // Update local state
+    setActiveSession(prev => prev ? { ...prev, ...updates } : null)
+  }
 
   // Load today's session total
   const loadTodaySession = async () => {
@@ -31,7 +103,7 @@ export default function StopwatchPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const today = new Date().toISOString().split('T')[0]
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' })
     const { data: sessions } = await supabase
       .from('study_sessions')
       .select('duration_seconds')
@@ -47,7 +119,7 @@ export default function StopwatchPage() {
   // Date change detection
   useEffect(() => {
     const checkDateChange = () => {
-      const today = new Date().toISOString().split('T')[0]
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' })
       if (currentDate !== today) {
         autoSaveAndReset()
       }
@@ -65,8 +137,9 @@ export default function StopwatchPage() {
   useEffect(() => {
     const checkMidnightWarning = () => {
       const now = new Date()
-      const hoursUntilMidnight = 24 - now.getHours()
-      const minutesUntilMidnight = 60 - now.getMinutes()
+      const turkishTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Istanbul' }))
+      const hoursUntilMidnight = 24 - turkishTime.getHours()
+      const minutesUntilMidnight = 60 - turkishTime.getMinutes()
       
       // Show warning when less than 1 hour until midnight and stopwatch is running
       if (hoursUntilMidnight <= 1 && minutesUntilMidnight <= 30 && running) {
@@ -92,8 +165,13 @@ export default function StopwatchPage() {
       setRunning(false)
       setPaused(false)
       
+      // Clear active session
+      if (activeSession) {
+        await clearActiveSession()
+      }
+      
       // Update date tracking
-      const today = new Date().toISOString().split('T')[0]
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Istanbul' })
       setCurrentDate(today)
       setLastSavedDate(today)
       
@@ -102,6 +180,19 @@ export default function StopwatchPage() {
       
       setSuccess('Otomatik kayıt yapıldı ve kronometre sıfırlandı.')
     }
+  }
+
+  // Clear active session from database
+  const clearActiveSession = async () => {
+    if (!activeSession) return
+    
+    const supabase = createClient()
+    await supabase
+      .from('active_sessions')
+      .delete()
+      .eq('id', activeSession.id)
+    
+    setActiveSession(null)
   }
 
   // Save session to database
@@ -124,10 +215,49 @@ export default function StopwatchPage() {
     }
   }
 
+  // Create or update active session
+  const createActiveSession = async () => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
+      throw new Error('Oturum bulunamadı.')
+    }
+
+    // Delete any existing active session first (due to unique constraint)
+    await supabase
+      .from('active_sessions')
+      .delete()
+      .eq('student_id', user.id)
+
+    // Create new active session
+    const { data, error } = await supabase
+      .from('active_sessions')
+      .insert({
+        student_id: user.id,
+        start_time: new Date().toISOString(),
+        is_paused: false,
+        last_pause_time: null,
+        total_paused_time: 0
+      })
+      .select()
+      .single()
+
+    if (error) {
+      throw new Error('Aktif oturum oluşturulamadı: ' + error.message)
+    }
+
+    setActiveSession(data)
+  }
+
   useEffect(() => {
     if (running && !paused) {
       intervalRef.current = setInterval(() => {
-        setSeconds((s) => s + 1)
+        // Calculate elapsed time from start_time, excluding paused time
+        if (activeSession) {
+          const elapsedSeconds = calculateElapsedTime(activeSession)
+          setSeconds(elapsedSeconds)
+        }
       }, 1000)
     } else if (intervalRef.current) {
       clearInterval(intervalRef.current)
@@ -135,7 +265,7 @@ export default function StopwatchPage() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
-  }, [running, paused])
+  }, [running, paused, activeSession])
 
   function formatTime(totalSeconds: number) {
     const h = Math.floor(totalSeconds / 3600)
@@ -161,6 +291,12 @@ export default function StopwatchPage() {
     
     try {
       await saveSession(seconds, currentDate)
+      
+      // Clear active session
+      if (activeSession) {
+        await clearActiveSession()
+      }
+      
       setSuccess('Çalışma kaydedildi!')
       setSeconds(0)
       
@@ -174,19 +310,77 @@ export default function StopwatchPage() {
   }
 
   function handlePause() {
-    setPaused(true)
+    if (activeSession && !paused) {
+      const now = new Date()
+      
+      console.log('Pausing stopwatch:', {
+        startTime: activeSession.start_time,
+        totalPausedTime: activeSession.total_paused_time,
+        currentTime: now.toISOString()
+      })
+      
+      // Just mark as paused - don't calculate running time yet
+      updateActiveSession({
+        is_paused: true,
+        last_pause_time: now.toISOString()
+      })
+      
+      setPaused(true)
+    }
   }
 
   function handleResume() {
-    setPaused(false)
+    if (activeSession && paused) {
+      const now = new Date()
+      
+      console.log('Resuming stopwatch:', {
+        startTime: activeSession.start_time,
+        lastPauseTime: activeSession.last_pause_time,
+        totalPausedTime: activeSession.total_paused_time,
+        currentTime: now.toISOString()
+      })
+      
+      // Calculate how long it was paused and add to total_paused_time
+      if (activeSession.last_pause_time) {
+        const pauseStart = new Date(activeSession.last_pause_time).getTime()
+        const pauseEnd = now.getTime()
+        const pauseDuration = pauseEnd - pauseStart
+        
+        console.log('Pause calculation:', {
+          pauseStart,
+          pauseEnd,
+          pauseDuration,
+          newTotalPausedTime: activeSession.total_paused_time + pauseDuration
+        })
+        
+        updateActiveSession({
+          is_paused: false,
+          last_pause_time: null,
+          total_paused_time: activeSession.total_paused_time + pauseDuration
+        })
+      } else {
+        // Fallback if last_pause_time is null
+        updateActiveSession({
+          is_paused: false,
+          last_pause_time: null
+        })
+      }
+      
+      setPaused(false)
+    }
   }
 
-  function handleStart() {
-    setRunning(true)
-    setPaused(false)
-    setSuccess('')
-    setError('')
-    setShowDateChangeWarning(false)
+  async function handleStart() {
+    try {
+      await createActiveSession()
+      setRunning(true)
+      setPaused(false)
+      setSuccess('')
+      setError('')
+      setShowDateChangeWarning(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Kronometre başlatılamadı')
+    }
   }
 
   return (
