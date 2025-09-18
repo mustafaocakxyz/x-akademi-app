@@ -215,7 +215,7 @@ export default function StudentDetailPage() {
       
       <div className="w-full max-w-2xl bg-gray-900 rounded-xl p-6 border border-blue-900">
         <h2 className="text-xl font-bold text-blue-400 mb-4">Sayfalar</h2>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Link href={`/students/${student.id}/todo`} className="block p-3 rounded-lg bg-gray-800 text-blue-200 border border-blue-900 hover:bg-blue-900 transition-colors text-center">
             Görevler
           </Link>
@@ -225,7 +225,9 @@ export default function StudentDetailPage() {
           <Link href={`/net-tracker?studentId=${student.id}`} className="block p-3 rounded-lg bg-gray-800 text-blue-200 border border-blue-900 hover:bg-blue-900 transition-colors text-center">
             Denemeler
           </Link>
-          {/* Add more student-related pages here as needed */}
+          <Link href={`/students/${student.id}/progress`} className="block p-3 rounded-lg bg-gray-800 text-blue-200 border border-blue-900 hover:bg-blue-900 transition-colors text-center">
+            İlerleme
+          </Link>
         </div>
       </div>
     </div>
