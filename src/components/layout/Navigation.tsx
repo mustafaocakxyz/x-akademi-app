@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Clock, Target, BarChart3, CheckSquare, Home, Menu, X } from 'lucide-react'
+import { Clock, Target, BarChart3, CheckSquare, Home, Menu, X, TrendingUp } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 
@@ -12,6 +12,7 @@ const navigation = [
   { name: 'Kazanım Takibi', href: '/kazanim-takibi', icon: Target },
   { name: 'Net Takip', href: '/net-tracker', icon: BarChart3 },
   { name: 'Yapılacaklar', href: '/todo', icon: CheckSquare },
+  { name: 'İlerleme', href: '/progress', icon: TrendingUp },
 ]
 
 interface Profile {
