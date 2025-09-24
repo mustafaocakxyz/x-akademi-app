@@ -60,7 +60,7 @@ export default function Navigation() {
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <h1 className="text-xl font-bold text-gray-900">X Akademi</h1>
+                <Link href="/dashboard" className="text-xl font-bold text-gray-900">Ana Sayfa</Link>
               </div>
             </div>
           </div>
@@ -79,7 +79,7 @@ export default function Navigation() {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <h1 className="text-xl font-bold text-gray-900">X Akademi</h1>
+              <Link href="/dashboard" className="text-xl font-bold text-gray-900">X Akademi</Link>
             </div>
           </div>
           
